@@ -17,10 +17,12 @@ LOCAL_FUSION = LOCAL_BMD.get_fusion_remote()
 UI = LOCAL_FUSION.UIManager
 DISP = LOCAL_BMD.bmd().UIDispatcher(UI)
 
-HOST_GALLERY = 'HOST_GALLERY'
-
+CurrentHostOnPage = len(JF) if len(JF)<=5 else 5
 
 INFOMATIONS = {}
+
+def offline_page(name):
+    return UI.Label({"Text": 'Resolve Offline'})
 
 class Workstation_status_UI(object):
     def __init__(self, ui, info) -> None:
@@ -38,7 +40,7 @@ class Workstation_status_UI(object):
     
     def dbName(self):
         return self.ui.Label({"Text": self.db,
-                "StyleSheet":"border: 1px solid black;background-color: rgb(33,33,33)", 
+                #"StyleSheet":"border: 1px solid black;background-color: rgb(33,33,33)", 
                 "Alignment": {"AlignHCenter": True,"AlignVCenter": True,},})
     
     def pageName(self):
@@ -52,12 +54,24 @@ class Workstation_status_UI(object):
                 "Alignment": {"AlignHCenter": True,"AlignVCenter": True,},})
 
     def layout_media(self):
-        return self.ui.VGroup({"Spacing": 10}, [
-                self.hostName(),
-                self.dbName(),
-                self.pageName(),
-                self.projName(),                
-                ])
+        group = self.ui.Stack([
+            self.ui.Label({"StyleSheet": 'background:rgb(40,40,40);border:2px solid grey;border-radius: 10px'}),
+            self.ui.VGroup({"Spacing": 10, }, [
+                self.ui.HGap(),
+                self.ui.HGroup({"Weight": 8},[
+                    self.ui.VGap(),
+                    self.ui.VGroup({"Weight": 8},[
+                        self.hostName(),
+                        self.dbName(),
+                        self.pageName(),
+                        self.projName(),
+                        ]),
+                    self.ui.VGap()
+                ]),
+                self.ui.HGap()
+                ]),
+        ])
+        return group
     
     def layout_cut(self):
         return self.ui.VGroup({"Spacing": 10}, [
@@ -107,6 +121,12 @@ class Workstation_status_UI(object):
                 self.projName(),
                 ])
     
+    def layout_offline(self):
+        return self.ui.VGroup({"Spacing": 10}, [
+                self.hostName(),
+                self.ui.Label({"Text": 'Resolve Offline'})
+                ])
+
     def render_stack(self):
         if self.page == 'Media':
             return self.layout_media()
@@ -122,38 +142,46 @@ class Workstation_status_UI(object):
             return self.layout_fairlight()
         elif self.page == 'Deliver':
             return self.layout_deliver()
+        elif self.page == 'Offline':
+            return self.layout_offline()
         else:
             return self.ui.Label({"Text": "No Page"})
+
 def collect_info() -> dict:
     for i in JF:
-        INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
+        try:
+            INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
+        except:
+            INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
     return INFOMATIONS
 
-def single_stack(id):
-    stacks = []
+def single_group(id):
+    group = []
     for i in JF:
         single_group = Workstation_status_UI(UI, collect_info()[i]).render_stack()
-        stacks.append(single_group)
-    print(stacks)
-    return UI.Stack({'ID': 'sig_'+str(id)}, stacks)
+        # try:
+        #     single_group = Workstation_status_UI(UI, collect_info()[i]).render_stack()
+        # except:
+        #     single_group = offline_page(i)
+        group.append(single_group)
+    return UI.Stack({'ID': 'group_'+str(id)}, group)
 
 def build_stacks():
-    group = UI.HGroup({"Spacing": 1})
+    group = UI.HGroup({"Spacing": 5})
     for i in range(0, len(JF)):
-        group.AddChild(single_stack(i))
+        group.AddChild(single_group(i))
     return group
 
 layout = [
-    UI.HGap(),
-    UI.HGroup({'Spacing': 10, "Weight": 9},[
-        UI.VGroup({'Spacing': 0}, [
+    UI.HGroup({'Spacing': 50,},[
+        UI.VGroup({'Spacing': 10}, [
             build_stacks(),
             UI.Slider({"ID": "switcher",
             'Events': { 'SliderMoved': True },
+            'Weight': 0,
             }),
         ]),
     ]),
-    UI.HGap(),
 ]
 
 
@@ -164,13 +192,12 @@ MAINWIN = DISP.AddWindow({
                                 200, 200, # x, y
                                 600, 300 # w, h
                                 ],
-                    }, UI.HGroup(layout))
+                    }, layout)
 
 ITEMS = MAINWIN.GetItems()
-print(ITEMS.keys())
 
 for i in range(0, len(JF)):
-    ITEMS['sig_'+ str(i)].CurrentIndex = i
+    ITEMS['group_'+ str(i)].CurrentIndex = i
 
 ITEMS['switcher'].Value = 0
 ITEMS['switcher'].Minimum = 0
@@ -181,8 +208,8 @@ def _exit(ev):
 
 def _switch(ev):
     current = ev['Value']
-    for i in range(0, len(JF)):
-        ITEMS['sig_'+ str(i)].CurrentIndex = i + current
+    for i in range(0, CurrentHostOnPage):
+        ITEMS['group_'+ str(i)].CurrentIndex = i + current
 
 
 MAINWIN.On['main'].Close = _exit
