@@ -1,5 +1,32 @@
 import importlib.util
 
+import signal,functools
+from time import time
+class TimeoutError(Exception):pass #定义一个超时错误类
+def time_out(seconds,error_msg='TIME_OUT_ERROR:No connection were found in limited time!'):
+#带参数的装饰器
+    def decorated(func):
+        result = ''
+        def signal_handler(signal_num,frame): # 信号机制的回调函数，signal_num即为信号，frame为被信号中断那一时刻的栈帧
+            global result
+            result = error_msg
+            raise TimeoutError(error_msg) #raise显式地引发异常。一旦执行了raise语句，raise后面的语句将不能执行
+        
+        def wrapper(*args,**kwargs):  #def wrapper(func,*args,**kwargs):
+            global result
+            signal.signal(signal.SIGALRM, signal_handler)
+            signal.alarm(seconds) #如果time是非0，这个函数则响应一个SIGALRM信号并在time秒后发送到该进程。
+            # print('time out~')
+            try:
+                result = func(*args,**kwargs) 
+                #若超时，此时alarm会发送信息激活回调函数signal_handler，从而引发异常终止掉try的代码块
+            finally:
+                signal.alarm(0) #假如在callback函数未执行的时候，要取消的话，那么可以使用alarm(0)来取消调用该回调函数
+                # print('finish')
+                return result
+        return functools.wraps(func)(wrapper) #return wrapper 
+    return decorated
+
 class Resolve(object):
     def __init__(self, app= 'Resolve',ip='127.0.0.1'):
         self.app = app
@@ -14,9 +41,11 @@ class Resolve(object):
         pylib = "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"
         return self.load_dynamic('fusionscript', pylib)
 
+    @time_out(1)
     def get_resolve_remote(self):
         return self.bmd().scriptapp(self.app, self.ip)
     
+    @time_out(1)
     def get_fusion_remote(self):
         return self.bmd().scriptapp('Fusion', self.ip)
 
@@ -25,6 +54,7 @@ class Workstation_info(object):
         self.name = hostname
         self.ip = ip
         self.resolve = Resolve(ip = self.ip).get_resolve_remote()
+
         self.page = self.resolve.GetCurrentPage()
         self.proj_mng = self.resolve.GetProjectManager()
         self.project = self.proj_mng.GetCurrentProject()

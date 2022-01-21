@@ -148,28 +148,30 @@ class Workstation_status_UI(object):
             return self.ui.Label({"Text": "No Page"})
 
 def collect_info() -> dict:
+    global INFOMATIONS
     for i in JF:
         try:
+            print('find: '+ i)
             INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
         except:
+            print('cannot find: ' + i)
             INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
     return INFOMATIONS
 
-def single_group(id):
+def single_group(id, info):
+    
+    getinfo = info
     group = []
     for i in JF:
-        single_group = Workstation_status_UI(UI, collect_info()[i]).render_stack()
-        # try:
-        #     single_group = Workstation_status_UI(UI, collect_info()[i]).render_stack()
-        # except:
-        #     single_group = offline_page(i)
+        single_group = Workstation_status_UI(UI, getinfo[i]).render_stack()
         group.append(single_group)
     return UI.Stack({'ID': 'group_'+str(id)}, group)
 
 def build_stacks():
+    info = collect_info()
     group = UI.HGroup({"Spacing": 5})
     for i in range(0, len(JF)):
-        group.AddChild(single_group(i))
+        group.AddChild(single_group(i, info))
     return group
 
 layout = [
