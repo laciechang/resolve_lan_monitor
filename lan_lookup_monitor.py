@@ -2,12 +2,12 @@ import imp
 import sys, os, socket, json
 
 import collect_resolve as davinci
+from splash import SplashScreen
 
 def read_hosts(file):
     with open(file,'r') as jf:
         load_dict = json.load(jf)
     return load_dict
-
 
 JF = read_hosts(os.path.join(os.path.dirname(__file__), 'config.json'))
 
@@ -16,13 +16,10 @@ LOCAL_RESOLVE = LOCAL_BMD.get_resolve_remote()
 LOCAL_FUSION = LOCAL_BMD.get_fusion_remote()
 UI = LOCAL_FUSION.UIManager
 DISP = LOCAL_BMD.bmd().UIDispatcher(UI)
-
 CurrentHostOnPage = len(JF) if len(JF)<=5 else 5
 
-INFOMATIONS = {}
 
-def offline_page(name):
-    return UI.Label({"Text": 'Resolve Offline'})
+INFOMATIONS = {}
 
 class Workstation_status_UI(object):
     def __init__(self, ui, info) -> None:
@@ -147,28 +144,34 @@ class Workstation_status_UI(object):
         else:
             return self.ui.Label({"Text": "No Page"})
 
-def collect_info() -> dict:
-    global INFOMATIONS
-    for i in JF:
-        try:
-            print('find: '+ i)
-            INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
-        except:
-            print('cannot find: ' + i)
-            INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
-    return INFOMATIONS
+splashscreen = SplashScreen(UI, DISP)
+splash_win = splashscreen.splash_window()
+progress_width = splashscreen.splash_progress().GetGeometry()[3]
+
+splash_win.Show()
+PROGRESS = 0
+for i in JF:
+    try:
+        INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
+    except:
+        INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
+    PROGRESS += 1
+    splashscreen.splash_progress().Resize([
+        int((PROGRESS / len(JF))*int(progress_width))
+        ,3])
+
+DISP.ExitLoop()
+splash_win.Hide()
 
 def single_group(id, info):
-    
-    getinfo = info
     group = []
     for i in JF:
-        single_group = Workstation_status_UI(UI, getinfo[i]).render_stack()
+        single_group = Workstation_status_UI(UI, info[i]).render_stack()
         group.append(single_group)
     return UI.Stack({'ID': 'group_'+str(id)}, group)
 
 def build_stacks():
-    info = collect_info()
+    info = INFOMATIONS
     group = UI.HGroup({"Spacing": 5})
     for i in range(0, len(JF)):
         group.AddChild(single_group(i, info))
@@ -182,10 +185,7 @@ layout = [
             'Events': { 'SliderMoved': True },
             'Weight': 0,
             }),
-        ]),
-    ]),
-]
-
+        ]),]),]
 
 MAINWIN = DISP.AddWindow({ 
                     'WindowTitle': 'Batch Render Tools Pro', 

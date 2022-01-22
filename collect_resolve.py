@@ -1,7 +1,9 @@
 import importlib.util
-
+from pickle import GLOBAL
 import signal,functools
-from time import time
+
+GLOBAL_WAIT_TIME = 4
+
 class TimeoutError(Exception):pass #定义一个超时错误类
 def time_out(seconds,error_msg='TIME_OUT_ERROR:No connection were found in limited time!'):
 #带参数的装饰器
@@ -41,11 +43,11 @@ class Resolve(object):
         pylib = "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"
         return self.load_dynamic('fusionscript', pylib)
 
-    @time_out(1)
+    @time_out(GLOBAL_WAIT_TIME)
     def get_resolve_remote(self):
         return self.bmd().scriptapp(self.app, self.ip)
     
-    @time_out(1)
+    @time_out(GLOBAL_WAIT_TIME)
     def get_fusion_remote(self):
         return self.bmd().scriptapp('Fusion', self.ip)
 
