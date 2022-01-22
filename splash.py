@@ -7,29 +7,32 @@ class SplashScreen(object):
         
 
     def splash_window(self):
-        layout = [
+        layout = self.ui.VGroup({'Spacing': 5}, [
             self.ui.Label({"Text":"DaVinci Resolve LAN Node Monitor",
             "Alignment": {"AlignHCenter": True,"AlignVCenter": True,}}),
-            self.ui.Stack([
-                self.ui.Label({"ID":self.progressid ,"StyleSheet":"max-height: 2px; background-color:rgb(223，189，100)"}),
-                self.ui.Label({"ID":"progress-bg",
-                "StyleSheet":"max-height: 2px; background-color:rgb(33，33，33);border:1px solid black"}),
-            ]),
-            self.ui.Label({"ID":self.loading_info ,"Text":"DaVinci Resolve LAN Node Monitor",
+            # self.ui.Stack({"ID": "pg_set",},[
+            #             # self.ui.Label({"ID": 'ProgressBarBG',  "StyleSheet": "max-height: 3px; background-color: rgb(37,37,37)",}),
+            #             ]),
+            self.ui.Label({"ID": self.progressid,  "StyleSheet": "max-height: 3px; background-color: rgb(102, 221, 39);border-width: 1px;border-style: solid;border-color: rgb(37,37,37);",}),
+            self.ui.Label({"ID":self.loading_info ,"Text":"Loading Nodes",
             "Alignment": {"AlignHCenter": True,"AlignVCenter": True,}}),
-        ]
+        ])
         win = self.disp.AddWindow({ 
                     'WindowTitle': 'Monitor Splash', 
-                    'ID': 'splash',
-                    'WindowFlags': { 'SplashScreen': True },
+                    'ID': 'Splash',
+                    # 'WindowFlags': 'Popup',
                     'Geometry': [ 
                                 200, 200, # x, y
-                                600, 300 # w, h
+                                700, 200 # w, h
                                 ],
                     }, layout)
-        return win
+        return layout
 
     def splash_progress(self):
-        return self.splash_window().GetItems()[self.progressid]
+        bar = self.splash_window().GetItems()[self.progressid]
+        return bar
     def splash_loading_info(self):
         return self.splash_window().GetItems()[self.loading_info]
+    
+    def splash_window_item(self):
+        return self.splash_window().GetItems()['Splash']

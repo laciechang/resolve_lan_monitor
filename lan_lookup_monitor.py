@@ -145,20 +145,29 @@ class Workstation_status_UI(object):
             return self.ui.Label({"Text": "No Page"})
 
 splashscreen = SplashScreen(UI, DISP)
-splash_win = splashscreen.splash_window()
-progress_width = splashscreen.splash_progress().GetGeometry()[3]
-
+splash_win = DISP.AddWindow({ 
+                    'WindowTitle': 'Monitor Splash', 
+                    'ID': 'Splash',
+                    'WindowFlags': {'Popup': True},
+                    'Geometry': [ 
+                                600, 400, # x, y
+                                400, 200 # w, h
+                                ],
+                    }, splashscreen.splash_window())
+splashitem = splash_win.GetItems()
+progressbar = splashitem['loading_progress']
+progress_width = progressbar.GetGeometry()[3]
 splash_win.Show()
 PROGRESS = 0
+progressbar.Resize([1,3])
 for i in JF:
     try:
         INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
     except:
         INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
     PROGRESS += 1
-    splashscreen.splash_progress().Resize([
-        int((PROGRESS / len(JF))*int(progress_width))
-        ,3])
+    pg_width = int(float(PROGRESS / (len(JF)+3))*int(progress_width))
+    progressbar.Resize([pg_width,3])
 
 DISP.ExitLoop()
 splash_win.Hide()

@@ -2,7 +2,7 @@ import importlib.util
 from pickle import GLOBAL
 import signal,functools
 
-GLOBAL_WAIT_TIME = 4
+GLOBAL_WAIT_TIME = 1
 
 class TimeoutError(Exception):pass #定义一个超时错误类
 def time_out(seconds,error_msg='TIME_OUT_ERROR:No connection were found in limited time!'):
