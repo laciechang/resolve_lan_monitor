@@ -22,6 +22,11 @@ CurrentHostOnPage = len(JF) if len(JF)<=MAXCARD else MAXCARD
 
 
 INFOMATIONS = {}
+def load_info(i):
+    try:
+        INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
+    except:
+        INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
 
 splashscreen = SplashScreen(UI, DISP)
 splash_win = DISP.AddWindow({ 
@@ -40,10 +45,7 @@ splash_win.Show()
 PROGRESS = 0
 progressbar.Resize([1,3])
 for i in JF:
-    try:
-        INFOMATIONS[i] = davinci.Workstation_info(i, JF[i]).Main_info()
-    except:
-        INFOMATIONS[i] = {"page": 'Offline', "name": i, 'database': 'na', 'project_name': 'na'}
+    load_info(i)
     PROGRESS += 1
     pg_width = int(float(PROGRESS / (len(JF)+3))*int(progress_width))
     progressbar.Resize([pg_width,3])
@@ -58,17 +60,17 @@ def single_group(id, info):
         group.append(single_group)
     return UI.Stack({'ID': 'group_'+str(id)}, group)
 
-def build_stacks():
-    info = INFOMATIONS
+def build_stacks(info = INFOMATIONS):
+    # info = INFOMATIONS
     group = []
     for i in range(0, CurrentHostOnPage):
         group.append(single_group(i, info))
-    return UI.HGroup({"Spacing": 5}, group)
+    return UI.HGroup({"Spacing": 5,}, group)
 
 layout = [
     UI.HGroup({'Spacing': 50,},[
         UI.VGroup({'Spacing': 10}, [
-            build_stacks(),
+            UI.Stack({"ID": "main_group"}, [build_stacks()]),
             UI.HGroup({'Weight': 0.1}, [
                 UI.HGap(),
                 UI.Slider({"ID": "switcher",
@@ -76,8 +78,10 @@ layout = [
                 'Weight': 1,
                 }),
                 UI.HGap(),
+                UI.Button({"ID":"refresher", "Text": "Refresh", "Visible": False})
             ]),
-        ]),]),]
+        ]),]), 
+    ]
 
 MAINWIN = DISP.AddWindow({ 
                     'WindowTitle': 'DaVinci Resolve LAN Monitor', 
@@ -89,6 +93,7 @@ MAINWIN = DISP.AddWindow({
                     }, layout)
 
 ITEMS = MAINWIN.GetItems()
+# print(ITEMS)
 
 for i in range(0, CurrentHostOnPage):
     ITEMS['group_'+ str(i)].CurrentIndex = i
@@ -109,8 +114,20 @@ def _switch(ev):
     for i in range(0, CurrentHostOnPage):
         ITEMS['group_'+ str(i)].CurrentIndex = i + current
 
+def _refresh(ev):
+    for i in JF:
+        load_info(i)
+    print(INFOMATIONS)
+    ITEMS['refresher'].Enabled = False
+    new_stacks = build_stacks(info=INFOMATIONS)
+    ITEMS['main_group'].RemoveChild()
+    ITEMS['main_group'].AddChild(new_stacks)
+    ITEMS['refresher'].Enabled = True
+
+
 MAINWIN.On['main'].Close = _exit
 MAINWIN.On['switcher'].SliderMoved = _switch
+MAINWIN.On['refresher'].Clicked = _refresh
 
 def show_win():
     MAINWIN.Show()
