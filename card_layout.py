@@ -25,12 +25,14 @@ class Card_UI(object):
                 "Alignment": {"AlignHCenter": True,"AlignVCenter": True,},})
     
     def projName(self):
-        return self.ui.Label({"Text": self.proj_name,
+        name = self.proj_name if len(self.proj_name) <=20 else self.proj_name[:20]+"..."
+        label = self.ui.Label({"Text": name, "ToolTip": self.proj_name,
                 "StyleSheet":"border: 1px solid black;background-color: rgb(40,40,40);border-radius: 2px", 
                 "Alignment": {"AlignHCenter": True,"AlignVCenter": True,},})
+        return label
     
     def timelineName(self):
-        name = self.info['timeline_name'] if len(self.info['timeline_name']) <=10 else self.info['timeline_name'][:10]+"..."
+        name = self.info['timeline_name'] if len(self.info['timeline_name']) <=20 else self.info['timeline_name'][:20]+"..."
         label = self.ui.Label({"Text": name, "ToolTip": self.info['timeline_name'],
                 "StyleSheet":"border: 1px solid black;background-color: rgb(40,40,40);border-radius: 2px", 
                 "Alignment": {"AlignHCenter": True,"AlignVCenter": True,},})
