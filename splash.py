@@ -10,10 +10,10 @@ class SplashScreen(object):
         layout = self.ui.VGroup({'Spacing': 5}, [
             self.ui.Label({"Text":"DaVinci Resolve LAN Node Monitor",
             "Alignment": {"AlignHCenter": True,"AlignVCenter": True,}}),
-            # self.ui.Stack({"ID": "pg_set",},[
-            #             # self.ui.Label({"ID": 'ProgressBarBG',  "StyleSheet": "max-height: 3px; background-color: rgb(37,37,37)",}),
-            #             ]),
-            self.ui.Label({"ID": self.progressid,  "StyleSheet": "max-height: 3px; background-color: rgb(102, 221, 39);border-width: 1px;border-style: solid;border-color: rgb(37,37,37);",}),
+            self.ui.Stack({"ID": "pg_set",},[
+                        self.ui.Label({"ID": 'ProgressBarBG',  "StyleSheet": "max-height: 3px; background-color: rgb(33,33,33)",}),
+                        self.ui.Label({"ID": self.progressid,  "StyleSheet": "max-height: 3px; background-color: rgb(102, 221, 39);border-width: 1px;border-style: solid;border-color: rgb(37,37,37);",}),
+                        ]),
             self.ui.Label({"ID":self.loading_info ,"Text":"Loading Nodes",
             "Alignment": {"AlignHCenter": True,"AlignVCenter": True,}}),
         ])

@@ -1,8 +1,33 @@
+import tempfile
 import importlib.util
-from pickle import GLOBAL
 import signal,functools
-
+import numpy as np
+import base64
+import cv2
+from PIL import ImageDraw, Image
 GLOBAL_WAIT_TIME = 1
+
+import pysnooper
+
+clipcolor = {
+    'Orange': [0, 110, 235],
+    'Apricot': [51, 168, 255],
+    'Yellow': [28, 169 ,226],
+    'Lime': [21, 198, 159],
+    'Olive': [32, 153, 94],
+    'Green': [100, 143, 68],
+    'Teal': [153, 152, 0],
+    'Navy': [119, 50, 31],
+    'Blue': [161, 118, 67],
+    'Purple': [160, 115, 153],
+    'Violet': [141, 87, 208],
+    'Pink': [181, 140, 233],
+    'Tan': [151, 176, 185],
+    'Beige': [119, 160, 198],
+    'Brown': [0, 102, 153],
+    'Chocolate': [63, 90, 140],
+    '': [161, 118, 67]
+}
 
 class TimeoutError(Exception):pass #定义一个超时错误类
 def time_out(seconds,error_msg='TIME_OUT_ERROR:No connection were found in limited time!'):
@@ -65,6 +90,73 @@ class Workstation_info(object):
 
         self.db_name = self.proj_mng.GetCurrentDatabase()['DbName']
         self.proj_name = self.project.GetName()
+
+    def edit_mini_timeline(self):
+        tHeight = 10
+        tl = self.timeline
+        total_track = tl.GetTrackCount('video')
+        duration = int(self.timeline.GetEndFrame() - self.timeline.GetStartFrame())
+        bg_h = tHeight * total_track+2 if total_track>3 else tHeight * 3 + 2
+        scale = 1 if duration < 2000 else (2000/duration)
+        bg = Image.new('RGB', (int(duration*scale)+3, bg_h), (33,33,33))
+        rectangle = ImageDraw.Draw(bg)
+        
+        for track in range(1, int(total_track)+1):
+            in_track_clips = tl.GetItemsInTrack('video', track)
+            for clip in in_track_clips:
+                clip = in_track_clips[clip]
+                clip_in = int((clip.GetStart() - tl.GetStartFrame())* scale)+1
+                clip_out = int((clip.GetEnd() - tl.GetStartFrame())* scale)+1
+                clip_color = clipcolor[clip.GetClipColor()]
+                try:
+                    rectangle.rectangle([clip_in, tHeight*(track-1)+1, clip_out, tHeight*track], fill= tuple([clip_color[2], clip_color[1], clip_color[0]]), outline= (23,23,23))
+                except:
+                    pass
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+        bg = bg.transpose(Image.FLIP_TOP_BOTTOM)
+        # if duration >= 2000:
+        #     bg = bg.resize((2000, tHeight * total_track+1), Image.BICUBIC)
+        bg.save(tmp_file)
+        # bg.show()
+        return tmp_file.name
+
+    def readb64(self, base64_string, width, height):
+        nparr = np.fromstring(base64.b64decode(base64_string), np.uint8)
+        nparr = nparr.reshape(int(height), int(width), 3)
+        return cv2.cvtColor(nparr, cv2.COLOR_RGB2BGR)
+    
+    def convert_thumbnail(self, currentMediaThumbnail):
+        width = currentMediaThumbnail["width"]
+        height = currentMediaThumbnail["height"]
+        imgstring = currentMediaThumbnail["data"]
+        cvimg = self.readb64(imgstring, width, height)
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+        cv2.imwrite(tmp_file.name, cvimg)
+        return tmp_file.name
+    
+    @pysnooper.snoop()
+    def current_rendering_jobs(self) -> list:
+        result = []
+        if self.project.IsRenderingInProgress():
+            all_jobs = self.project.GetRenderJobList()
+            for j in all_jobs:
+                id = j['JobId']
+                status = self.project.GetRenderJobStatus(id)
+                if j['TimelineName'] != self.timeline.GetName():
+                    if status['JobStatus'] != 'Rendering':
+                        result.append(j)
+            return result
+        else:
+            return None
+    
+    def rendering_job_progress(self, jobs):
+        result = []
+        for j in jobs:
+            id = j['JobId']
+            status = self.project.GetRenderJobStatus(id)
+            result.append(status)
+        return result
+    
     
     def Main_info(self) -> dict:
         '''
@@ -75,6 +167,7 @@ class Workstation_info(object):
                 'page': 'Media',
                 'name': self.name,
                 'current_bin': self.mediapool.GetCurrentFolder().GetName(),
+                'timeline_name': None
             }
         elif self.page == 'cut':
             main_info = {
@@ -88,21 +181,24 @@ class Workstation_info(object):
                 'name': self.name,
                 'timeline_name': self.timeline.GetName(),
                 'timeline_duration':self.timeline.GetEndFrame(),
+                'mini_timeline': self.edit_mini_timeline()
             }
         elif self.page =='fusion':
             main_info = {
                 'page': 'Fusion',
                 'name': self.name,
-                'timeline name': self.timeline.GetName()
+                'timeline_name': self.timeline.GetName()
             }
         elif self.page =='color':
+            thumb_data = self.timeline.GetCurrentClipThumbnailImage()
             main_info = {
                 'page': 'Color',
                 'name': self.name,
                 'timeline_name': self.timeline.GetName(),
+                'timeline_duration': int(self.timeline.GetEndFrame() - self.timeline.GetStartFrame()),
                 'current_clip': self.timeline.GetCurrentVideoItem(),
-                'current_thumb': self.timeline.GetCurrentClipThumbnailImage(),
-                'current_position': self.timeline.GetCurrentVideoItem().GetStart()
+                'current_thumb': self.convert_thumbnail(thumb_data),
+                'current_position': float((self.timeline.GetCurrentVideoItem().GetStart() - self.timeline.GetStartFrame()) / int(self.timeline.GetEndFrame() - self.timeline.GetStartFrame()))
             }
         elif self.page =='fairlight':
             main_info = {
@@ -111,14 +207,21 @@ class Workstation_info(object):
                 'timeline_name': self.timeline.GetName()
             }
         elif self.page =='deliver':
+            current_rendering_job = self.current_rendering_jobs()
             main_info = {
                 'page': 'Deliver',
                 'name': self.name,
                 'timeline_name': self.timeline.GetName(),
                 'is_rendering': self.project.IsRenderingInProgress(),
-                'render_job_list': self.project.GetRenderJobList()
+                'render_job_list': self.project.GetRenderJobList(),
+                'rendering_jobs': current_rendering_job,
+                'rendering_job_progress': self.rendering_job_progress(current_rendering_job) if current_rendering_job is not None else None
             }
         main_info['database'] = self.db_name
         main_info['project_name'] = self.proj_name
         
         return main_info
+
+if __name__ == '__main__':
+    info = Workstation_info(hostname='self', ip='127.0.0.1')
+    print(info.Main_info())
